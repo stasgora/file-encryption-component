@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>edu.encrypted.file.transfer</groupId>
-	<artifactId>rsa-authentication-component</artifactId>
+	<artifactId>file-encryption-component</artifactId>
 	<version>0.1</version>
 
 	<properties>
