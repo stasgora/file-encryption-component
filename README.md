@@ -1,2 +1,2 @@
-# rsa-authentication-component
-RSA and session key component for file encryption app
+# file-encryption-component
+AES encryption & RSA and session keys component for file encryption app
