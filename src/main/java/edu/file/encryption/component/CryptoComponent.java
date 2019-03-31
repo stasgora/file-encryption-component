@@ -46,6 +46,11 @@ public class CryptoComponent implements ICryptoComponent {
 		return "key";
 	}
 
+	@Override
+	public String getSessionKey() {
+		return "session";
+	}
+
 	private Boolean _generateRSAKeyPair(String outFileName) {
         /*
         Description:

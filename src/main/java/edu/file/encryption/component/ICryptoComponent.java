@@ -8,6 +8,8 @@ public interface ICryptoComponent {
 
 	String getPublicRSAKey();
 
+	String getSessionKey();
+
 	String encrypt(String value, String key);
 
 	String decrypt(String value, String key);
