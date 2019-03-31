@@ -10,13 +10,13 @@ public interface ICryptoComponent {
 
 	String getSessionKey();
 
-	String encryptAES(String value, String key);
+	byte[] AESEncrypt(byte[] value, String key);
 
-	String decryptAES(String value, String key);
+	byte[] AESDecrypt(byte[] value, String key);
 
-	String encryptRSA(String value, String key);
+	String RSAEncrypt(String value, String key);
 
-	String decryptRSA(String value);
+	String RSADecrypt(String value);
 
 	EncryptionParameters getParameters();
 

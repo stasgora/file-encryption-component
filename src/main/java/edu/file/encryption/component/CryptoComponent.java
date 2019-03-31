@@ -90,7 +90,7 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public String encryptAES(String value, String key) {
+	public byte[] AESEncrypt(byte[] value, String key) {
 
 		Base64.Encoder encoder = Base64.getEncoder();
 		IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
@@ -99,53 +99,50 @@ public class CryptoComponent implements ICryptoComponent {
 		try {
 			Cipher cipher = Cipher.getInstance(this.encryptionAlgorithm + "/" + CipherAlgorithmMode.CBC.name() + "/" + this.paddingMethod);
 			cipher.init(Cipher.ENCRYPT_MODE, skeySpec, iv);
-			byte[] privateKey = cipher.doFinal(value.getBytes());
-			return encoder.encodeToString(privateKey);
+			return cipher.doFinal(value);
 		} catch (NoSuchAlgorithmException e) {
 			System.out.println("-E- NoSuchAlgorithmException when working with Cipher!");
-			return "0";
+			return null;
 		} catch (NoSuchPaddingException e) {
 			System.out.println("-E- NoSuchPaddingException when working with Cipher!");
-			return "0";
+			return null;
 		} catch (InvalidAlgorithmParameterException e) {
 			System.out.println("-E- InvalidAlgorithmParameterException when working with Cipher!");
-			return "0";
+			return null;
 		} catch (InvalidKeyException e) {
 			System.out.println("-E- InvalidKeyException when working with Cipher!");
-			return "0";
+			return null;
 		} catch (IllegalBlockSizeException e) {
 			System.out.println("-E- IllegalBlockSizeException when working with Cipher!");
-			return "0";
+			return null;
 		} catch (BadPaddingException e) {
 			System.out.println("-E- BadPaddingException when working with Cipher!");
-			return "0";
+			return null;
 		}
 	}
 
 	@Override
-	public String decryptAES(String value, String key) {
+	public byte[] AESDecrypt(byte[] value, String key) {
 		try {
 			IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
 			SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), "AES");
 
 			Cipher cipher = Cipher.getInstance(this.encryptionAlgorithm + "/" + CipherAlgorithmMode.CBC.name() + "/" + this.paddingMethod);
 			cipher.init(Cipher.DECRYPT_MODE, skeySpec, iv);
-			byte[] original = cipher.doFinal(value.getBytes());
-
-			return new String(original);
+			return cipher.doFinal(value);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
-		return "0";
+		return null;
 	}
 
 	@Override
-	public String encryptRSA(String value, String key) {
+	public String RSAEncrypt(String value, String key) {
 		return value;
 	}
 
 	@Override
-	public String decryptRSA(String value) {
+	public String RSADecrypt(String value) {
 		return value;
 	}
 
@@ -168,16 +165,14 @@ public class CryptoComponent implements ICryptoComponent {
 
 		try {
 			String keyDirPath = "." + File.separator + KEY_DIRECTORY_NAME + File.separator;
-			boolean createdDir = new File(keyDirPath + PRIVATE_DIR_NAME).mkdirs();
 			if (encrypted) {
 				out = new FileWriter(keyDirPath + PRIVATE_DIR_NAME + File.separator + outFileName + ".key");
-				String finalKey = this.encryptAES(encoder.encodeToString(key.getEncoded()), "");//TODO: pass the key
-				Boolean success = finalKey.equals("0") ? Boolean.FALSE : Boolean.TRUE;
-				if (!success) {
-					System.out.println("-E- Failed to encryptAES private key!");
+				byte[] value = this.AESEncrypt(key.getEncoded(), "");//TODO: pass the key
+				if (value == null) {
+					System.out.println("-E- Failed to AESEncrypt private key!");
 					return Boolean.FALSE;
 				}
-				out.write(finalKey);
+				out.write(encoder.encodeToString(value));
 			} else {
 				out = new FileWriter(keyDirPath + outFileName + ".key");
 				out.write(encoder.encodeToString(key.getEncoded()));
