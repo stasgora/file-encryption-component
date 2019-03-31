@@ -79,7 +79,7 @@ public class CryptographyComp implements ICryptographicKey {
 	}
 
 	@Override
-	public String encrypt(String value) {
+	public String encrypt(String value, String key) {
 
 		Base64.Encoder encoder = Base64.getEncoder();
 		IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
@@ -112,7 +112,7 @@ public class CryptographyComp implements ICryptographicKey {
 	}
 
 	@Override
-	public String decrypt(String value) {
+	public String decrypt(String value, String key) {
 		try {
 			IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
 			SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), "AES");
@@ -150,7 +150,7 @@ public class CryptographyComp implements ICryptographicKey {
 			boolean createdDir = new File(keyDirPath + PRIVATE_DIR_NAME).mkdirs();
 			if (encrypted) {
 				out = new FileWriter(keyDirPath + PRIVATE_DIR_NAME + File.separator + outFileName + ".key");
-				String finalKey = this.encrypt(encoder.encodeToString(key.getEncoded()));
+				String finalKey = this.encrypt(encoder.encodeToString(key.getEncoded()), "");//TODO: pass the key
 				Boolean success = finalKey.equals("0") ? Boolean.FALSE : Boolean.TRUE;
 				if (!success) {
 					System.out.println("-E- Failed to encrypt private key!");
@@ -169,8 +169,14 @@ public class CryptographyComp implements ICryptographicKey {
 		return Boolean.TRUE;
 	}
 
+	@Override
 	public EncryptionParameters getParameters() {
 		return parameters;
+	}
+
+	@Override
+	public void setParameters(EncryptionParameters parameters) {
+		this.parameters = parameters;
 	}
 
 	private Boolean AssertTrue(Boolean value, String msg) {
