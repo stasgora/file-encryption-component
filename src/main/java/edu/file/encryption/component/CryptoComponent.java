@@ -1,6 +1,7 @@
 package edu.file.encryption.component;
 
 import edu.file.encryption.component.enums.CipherAlgorithmMode;
+import edu.file.encryption.component.interfaces.ICryptoComponent;
 import edu.file.encryption.component.model.EncryptionParameters;
 
 import javax.crypto.BadPaddingException;
@@ -89,7 +90,7 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public String encrypt(String value, String key) {
+	public String encryptAES(String value, String key) {
 
 		Base64.Encoder encoder = Base64.getEncoder();
 		IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
@@ -122,7 +123,7 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public String decrypt(String value, String key) {
+	public String decryptAES(String value, String key) {
 		try {
 			IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
 			SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), "AES");
@@ -136,6 +137,16 @@ public class CryptoComponent implements ICryptoComponent {
 			ex.printStackTrace();
 		}
 		return "0";
+	}
+
+	@Override
+	public String encryptRSA(String value, String key) {
+		return value;
+	}
+
+	@Override
+	public String decryptRSA(String value) {
+		return value;
 	}
 
 	private Boolean saveKeyOnDrive(Key key, boolean encrypted, String outFileName) {
@@ -160,10 +171,10 @@ public class CryptoComponent implements ICryptoComponent {
 			boolean createdDir = new File(keyDirPath + PRIVATE_DIR_NAME).mkdirs();
 			if (encrypted) {
 				out = new FileWriter(keyDirPath + PRIVATE_DIR_NAME + File.separator + outFileName + ".key");
-				String finalKey = this.encrypt(encoder.encodeToString(key.getEncoded()), "");//TODO: pass the key
+				String finalKey = this.encryptAES(encoder.encodeToString(key.getEncoded()), "");//TODO: pass the key
 				Boolean success = finalKey.equals("0") ? Boolean.FALSE : Boolean.TRUE;
 				if (!success) {
-					System.out.println("-E- Failed to encrypt private key!");
+					System.out.println("-E- Failed to encryptAES private key!");
 					return Boolean.FALSE;
 				}
 				out.write(finalKey);

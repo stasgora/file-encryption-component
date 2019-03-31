@@ -1,4 +1,4 @@
-package edu.file.encryption.component;
+package edu.file.encryption.component.interfaces;
 
 import edu.file.encryption.component.model.EncryptionParameters;
 
@@ -10,9 +10,13 @@ public interface ICryptoComponent {
 
 	String getSessionKey();
 
-	String encrypt(String value, String key);
+	String encryptAES(String value, String key);
 
-	String decrypt(String value, String key);
+	String decryptAES(String value, String key);
+
+	String encryptRSA(String value, String key);
+
+	String decryptRSA(String value);
 
 	EncryptionParameters getParameters();
 
