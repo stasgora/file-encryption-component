@@ -41,6 +41,11 @@ public class CryptoComponent implements ICryptoComponent {
 		AssertTrue(_generateRSAKeyPair(outFileName), "-E- Failed to generate RSA Key pair!");
 	}
 
+	@Override
+	public String getPublicRSAKey() {
+		return "key";
+	}
+
 	private Boolean _generateRSAKeyPair(String outFileName) {
         /*
         Description:

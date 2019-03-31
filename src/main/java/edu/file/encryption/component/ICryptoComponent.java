@@ -6,6 +6,8 @@ public interface ICryptoComponent {
 
 	void generateRSAKeyPair(String outFileName);
 
+	String getPublicRSAKey();
+
 	String encrypt(String value, String key);
 
 	String decrypt(String value, String key);
