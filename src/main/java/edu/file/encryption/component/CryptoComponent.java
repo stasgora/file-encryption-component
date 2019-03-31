@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 
 
-public class CryptographyComp implements ICryptographicKey {
+public class CryptoComponent implements ICryptoComponent {
 
 	private static String BASE_RSA_FILE_NAME = "totallyNotRSAKeyMoveOn";
 	private String userName;
@@ -30,7 +30,7 @@ public class CryptographyComp implements ICryptographicKey {
 
 	private EncryptionParameters parameters;
 
-	public CryptographyComp(String name, String pwd) {
+	public CryptoComponent(String name, String pwd) {
 		parameters = new EncryptionParameters();
 		this.userName = name;
 		this.userPassword = pwd;

@@ -2,7 +2,7 @@ package edu.file.encryption.component;
 
 import edu.file.encryption.component.model.EncryptionParameters;
 
-public interface ICryptographicKey {
+public interface ICryptoComponent {
 
 	void generateRSAKeyPair(String outFileName);
 
