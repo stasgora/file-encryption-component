@@ -14,10 +14,13 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 public class CryptoComponent implements ICryptoComponent {
@@ -25,16 +28,16 @@ public class CryptoComponent implements ICryptoComponent {
 	private static String BASE_RSA_FILE_NAME = "totallyNotRSAKeyMoveOn";
 	private String userName;
 	private String userPassword;
-
-	private String encryptionAlgorithm = "AES";
-	private String paddingMethod = "PKCS5PADDING";
+	private SecretKeySpec sessionKey;
 
 	private EncryptionParameters parameters;
+	private static final Logger LOGGER = Logger.getLogger(CryptoComponent.class.getName());
 
 	public CryptoComponent(String name, String pwd) {
 		parameters = new EncryptionParameters();
 		this.userName = name;
 		this.userPassword = pwd;
+		this.generateSessionKey();
 	}
 
 	@Override
@@ -49,7 +52,15 @@ public class CryptoComponent implements ICryptoComponent {
 
 	@Override
 	public String getSessionKey() {
-		return "session";
+		return Base64.getEncoder().encodeToString(this.sessionKey.getEncoded());
+	}
+
+	@Override
+	public void generateSessionKey(){
+		ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+		buffer.putLong(System.currentTimeMillis());
+		SecretKeySpec skeySpec = new SecretKeySpec(buffer.array(), this.parameters.encryptionAlgorithm);
+		this.sessionKey = skeySpec;
 	}
 
 	private Boolean _generateRSAKeyPair(String outFileName) {
@@ -63,20 +74,18 @@ public class CryptoComponent implements ICryptoComponent {
          */
 
 		ArrayList<Boolean> returnCodes = new ArrayList<>();
-		String BASE_SECURITY_NAME = "RSA";
-		int KEY_SIZE = 2048;
 		if (outFileName.equals("")) outFileName = BASE_RSA_FILE_NAME;
 		String publicKeyFileName = outFileName + "Public.bin";
 		String privateKeyFileName = outFileName + "Private.bin";
 
 		KeyPairGenerator kpg;
 		try {
-			kpg = KeyPairGenerator.getInstance(BASE_SECURITY_NAME);
+			kpg = KeyPairGenerator.getInstance(this.parameters.RSA_name);
 		} catch (NoSuchAlgorithmException e) {
-			System.out.println("-E- NoSuchAlgorithmException for KeyPairGenerator.getInstance(" + BASE_SECURITY_NAME + ")");
+			LOGGER.log(Level.WARNING, "-E- No instance named "+this.parameters.RSA_name, e);
 			return Boolean.FALSE;
 		}
-		kpg.initialize(KEY_SIZE);
+		kpg.initialize(this.parameters.RSA_keySize);
 		KeyPair keyPair = kpg.generateKeyPair();
 
 		Key publicKey = keyPair.getPublic();
@@ -94,29 +103,27 @@ public class CryptoComponent implements ICryptoComponent {
 
 		Base64.Encoder encoder = Base64.getEncoder();
 		IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
-		SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), encryptionAlgorithm);
+		//SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), this.parameters.encryptionAlgorithm);
+		String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, CipherAlgorithmMode.CBC.name(), this.parameters.paddingMethod);
 
 		try {
-			Cipher cipher = Cipher.getInstance(this.encryptionAlgorithm + "/" + CipherAlgorithmMode.CBC.name() + "/" + this.paddingMethod);
-			cipher.init(Cipher.ENCRYPT_MODE, skeySpec, iv);
+			Cipher cipher = Cipher.getInstance(cipherInstance);
+			cipher.init(Cipher.ENCRYPT_MODE, this.sessionKey, iv);
 			return cipher.doFinal(value);
 		} catch (NoSuchAlgorithmException e) {
-			System.out.println("-E- NoSuchAlgorithmException when working with Cipher!");
+			LOGGER.log(Level.SEVERE, "-E- NoSuchAlgorithmException when working with Cipher!", e);
 			return null;
-		} catch (NoSuchPaddingException e) {
-			System.out.println("-E- NoSuchPaddingException when working with Cipher!");
-			return null;
-		} catch (InvalidAlgorithmParameterException e) {
-			System.out.println("-E- InvalidAlgorithmParameterException when working with Cipher!");
+		} catch (NoSuchPaddingException | InvalidAlgorithmParameterException e) {
+			LOGGER.log(Level.WARNING, "-E- Invalid Cipher parameters!", e);
 			return null;
 		} catch (InvalidKeyException e) {
-			System.out.println("-E- InvalidKeyException when working with Cipher!");
+			LOGGER.log(Level.WARNING, "-E- Invalid Key", e);
 			return null;
 		} catch (IllegalBlockSizeException e) {
-			System.out.println("-E- IllegalBlockSizeException when working with Cipher!");
+			LOGGER.log(Level.WARNING, "-E- Illegal block size", e);
 			return null;
 		} catch (BadPaddingException e) {
-			System.out.println("-E- BadPaddingException when working with Cipher!");
+			LOGGER.log(Level.WARNING, "-E- Bad padding", e);
 			return null;
 		}
 	}
@@ -125,24 +132,55 @@ public class CryptoComponent implements ICryptoComponent {
 	public byte[] AESDecrypt(byte[] value, String key) {
 		try {
 			IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
-			SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), "AES");
+			//SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), "AES");
 
-			Cipher cipher = Cipher.getInstance(this.encryptionAlgorithm + "/" + CipherAlgorithmMode.CBC.name() + "/" + this.paddingMethod);
-			cipher.init(Cipher.DECRYPT_MODE, skeySpec, iv);
+			String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, CipherAlgorithmMode.CBC.name(), this.parameters.paddingMethod);
+			Cipher cipher = Cipher.getInstance(cipherInstance);
+			cipher.init(Cipher.DECRYPT_MODE, this.sessionKey, iv);
 			return cipher.doFinal(value);
 		} catch (Exception ex) {
 			ex.printStackTrace();
+			LOGGER.log(Level.WARNING, "-E- Failure when working with Cipher", ex);
 		}
 		return null;
 	}
 
 	@Override
 	public String RSAEncrypt(String value, String key) {
+		try {
+			Cipher cipher = Cipher.getInstance("RSA");
+
+			SecretKeySpec skeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8),"RSA");
+			cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
+			return new String(cipher.doFinal(value.getBytes()));
+		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
+			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
+		}catch(InvalidKeyException e){
+			LOGGER.log(Level.WARNING, "-E- Invalid key during RSAEncryption", e);
+		}catch(IllegalBlockSizeException | BadPaddingException e){
+			LOGGER.log(Level.WARNING, "-E- Illegal block size or bad padding during RSAEncryption", e);
+		}
+		LOGGER.log(Level.WARNING, "-W- message failed encryption process");
 		return value;
 	}
 
 	@Override
-	public String RSADecrypt(String value) {
+	public String RSADecrypt(String value, String key) {
+
+		try {
+			Cipher cipher = Cipher.getInstance("RSA");
+
+			SecretKeySpec skeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8),"RSA");
+			cipher.init(Cipher.DECRYPT_MODE, skeySpec);
+			return new String(cipher.doFinal(value.getBytes()));
+		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
+			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
+		}catch(InvalidKeyException e){
+			LOGGER.log(Level.WARNING, "-E- Invalid key during RSADecryption", e);
+		}catch(IllegalBlockSizeException | BadPaddingException e){
+			LOGGER.log(Level.WARNING, "-E- Illegal block size or bad padding during RSADecryption", e);
+		}
+		LOGGER.log(Level.WARNING, "-W- message failed decryption process");
 		return value;
 	}
 
@@ -167,18 +205,25 @@ public class CryptoComponent implements ICryptoComponent {
 			String keyDirPath = "." + File.separator + KEY_DIRECTORY_NAME + File.separator;
 			if (encrypted) {
 				out = new FileWriter(keyDirPath + PRIVATE_DIR_NAME + File.separator + outFileName + ".key");
-				byte[] value = this.AESEncrypt(key.getEncoded(), "");//TODO: pass the key
-				if (value == null) {
-					System.out.println("-E- Failed to AESEncrypt private key!");
-					return Boolean.FALSE;
+				try {
+					// Saving secret key using AES with hash from user pwd as key
+					MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);
+					byte[] encodedhash = digest.digest(this.userPassword.getBytes(StandardCharsets.UTF_8));
+					byte[] value = this.AESEncrypt(key.getEncoded(), new String(encodedhash));
+					if (value == null) {
+						System.out.println("-E- Failed to AESEncrypt private key!");
+						return Boolean.FALSE;
+					}
+					out.write(encoder.encodeToString(value));
+				}catch(NoSuchAlgorithmException e){
+					LOGGER.log(Level.SEVERE, "-E- Incorrect hash function name", e);
 				}
-				out.write(encoder.encodeToString(value));
 			} else {
 				out = new FileWriter(keyDirPath + outFileName + ".key");
 				out.write(encoder.encodeToString(key.getEncoded()));
 			}
 		} catch (IOException e) {
-			System.out.println("-E- IOException when working with FileWriter!");
+			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);
 			return Boolean.FALSE;
 		}
 

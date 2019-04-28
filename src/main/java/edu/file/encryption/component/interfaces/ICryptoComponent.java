@@ -6,6 +6,8 @@ public interface ICryptoComponent {
 
 	void generateRSAKeyPair(String outFileName);
 
+	void generateSessionKey();
+
 	String getPublicRSAKey();
 
 	String getSessionKey();
@@ -16,7 +18,7 @@ public interface ICryptoComponent {
 
 	String RSAEncrypt(String value, String key);
 
-	String RSADecrypt(String value);
+	String RSADecrypt(String value, String key);
 
 	EncryptionParameters getParameters();
 
