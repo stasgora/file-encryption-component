@@ -14,6 +14,7 @@ public class EncryptionParameters {
 	public CipherAlgorithmMode cipherAlgMode;
 	public String hashFunctionName = "SHA-256";
 
+	public String recipient;
 	public String fileName;
 	public int fileLength;
 
