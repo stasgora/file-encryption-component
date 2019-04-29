@@ -142,8 +142,11 @@ public class CryptoComponent implements ICryptoComponent {
 
 		try {
 			Cipher cipher = Cipher.getInstance(cipherInstance);
-			byte[] byteKey = Base64.getDecoder().decode(key);
-			SecretKeySpec sKey = new SecretKeySpec(byteKey, 0, byteKey.length, "AES");
+			//byte[] byteKey = Base64.getDecoder().decode(key);
+			byte[] byteKey = key.getBytes();
+
+			System.out.println("DUPA1: "+key);
+			SecretKeySpec sKey = new SecretKeySpec(byteKey,0, 32, "AES");
 			cipher.init(Cipher.ENCRYPT_MODE, sKey, iv);
 			return cipher.doFinal(value);
 		} catch (NoSuchAlgorithmException e) {
@@ -154,6 +157,7 @@ public class CryptoComponent implements ICryptoComponent {
 			return null;
 		} catch (InvalidKeyException e) {
 			LOGGER.log(Level.WARNING, "-E- Invalid Key", e);
+			System.out.println("DUPA: "+key);
 			return null;
 		} catch (IllegalBlockSizeException e) {
 			LOGGER.log(Level.WARNING, "-E- Illegal block size", e);
@@ -173,7 +177,7 @@ public class CryptoComponent implements ICryptoComponent {
 			Cipher cipher = Cipher.getInstance(cipherInstance);
 
 			byte[] byteKey = Base64.getDecoder().decode(key);
-			SecretKeySpec sKey = new SecretKeySpec(byteKey, 0, byteKey.length, "AES");
+			SecretKeySpec sKey = new SecretKeySpec(byteKey, 0, 32, "AES");
 			cipher.init(Cipher.DECRYPT_MODE, sKey, iv);
 			return cipher.doFinal(value);
 		} catch (Exception ex) {
