@@ -142,7 +142,9 @@ public class CryptoComponent implements ICryptoComponent {
 
 		try {
 			Cipher cipher = Cipher.getInstance(cipherInstance);
-			cipher.init(Cipher.ENCRYPT_MODE, this.sessionKey, iv);
+			byte[] byteKey = Base64.getDecoder().decode(key);
+			SecretKeySpec sKey = new SecretKeySpec(byteKey, 0, byteKey.length, "AES");
+			cipher.init(Cipher.ENCRYPT_MODE, sKey, iv);
 			return cipher.doFinal(value);
 		} catch (NoSuchAlgorithmException e) {
 			LOGGER.log(Level.SEVERE, "-E- NoSuchAlgorithmException when working with Cipher!", e);
@@ -169,7 +171,10 @@ public class CryptoComponent implements ICryptoComponent {
 
 			String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, cipherMode.name(), this.parameters.paddingMethod);
 			Cipher cipher = Cipher.getInstance(cipherInstance);
-			cipher.init(Cipher.DECRYPT_MODE, this.sessionKey, iv);
+
+			byte[] byteKey = Base64.getDecoder().decode(key);
+			SecretKeySpec sKey = new SecretKeySpec(byteKey, 0, byteKey.length, "AES");
+			cipher.init(Cipher.DECRYPT_MODE, sKey, iv);
 			return cipher.doFinal(value);
 		} catch (Exception ex) {
 			ex.printStackTrace();
