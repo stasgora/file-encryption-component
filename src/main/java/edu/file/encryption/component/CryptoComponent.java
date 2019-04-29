@@ -51,6 +51,11 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
+	public String getPrivateRSAKey() {
+		return "key";
+	}
+
+	@Override
 	public String getSessionKey() {
 		return Base64.getEncoder().encodeToString(this.sessionKey.getEncoded());
 	}

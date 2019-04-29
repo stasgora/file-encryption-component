@@ -11,6 +11,8 @@ public interface ICryptoComponent {
 
 	String getPublicRSAKey();
 
+	String getPrivateRSAKey();
+
 	String getSessionKey();
 
 	byte[] AESEncrypt(byte[] value, String key, CipherAlgorithmMode cipherMode);
