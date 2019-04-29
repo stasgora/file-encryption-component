@@ -5,9 +5,11 @@ import edu.file.encryption.component.model.EncryptionParameters;
 
 public interface ICryptoComponent {
 
-	void generateRSAKeyPair(String outFileName);
+	void generateRSAKeyPair();
 
 	void generateSessionKey();
+
+	void loginUser(String login, String pwd);
 
 	String getPublicRSAKey();
 

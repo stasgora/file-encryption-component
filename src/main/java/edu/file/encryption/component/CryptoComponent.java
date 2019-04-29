@@ -10,12 +10,11 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -24,8 +23,6 @@ import java.util.logging.Logger;
 
 
 public class CryptoComponent implements ICryptoComponent {
-
-	private static String BASE_RSA_FILE_NAME = "totallyNotRSAKeyMoveOn";
 	private String userName;
 	private String userPassword;
 	private SecretKeySpec sessionKey;
@@ -33,26 +30,58 @@ public class CryptoComponent implements ICryptoComponent {
 	private EncryptionParameters parameters;
 	private static final Logger LOGGER = Logger.getLogger(CryptoComponent.class.getName());
 
-	public CryptoComponent(String name, String pwd) {
+	public CryptoComponent() {
 		parameters = new EncryptionParameters();
-		this.userName = name;
-		this.userPassword = pwd;
 		this.generateSessionKey();
 	}
 
 	@Override
-	public void generateRSAKeyPair(String outFileName) {
-		AssertTrue(_generateRSAKeyPair(outFileName), "-E- Failed to generate RSA Key pair!");
+	public void loginUser(String login, String pwd){
+		this.userName = login;
+		try{
+			MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);
+			byte[] encodedhash = digest.digest(pwd.getBytes(StandardCharsets.UTF_8));
+			this.userPassword = new String(encodedhash);
+
+		}catch(NoSuchAlgorithmException e){
+			LOGGER.log(Level.SEVERE, "-E- Incorrect hash function name", e);
+		}
+	}
+
+	@Override
+	public void generateRSAKeyPair() {
+		AssertTrue(_generateRSAKeyPair(), "-E- Failed to generate RSA Key pair!");
 	}
 
 	@Override
 	public String getPublicRSAKey() {
-		return "key";
+		String keyDirPath = String.join(File.separator,".", this.parameters.keyDir, this.userName);
+
+		try {
+			return new String(Files.readAllBytes(Paths.get(keyDirPath+this.parameters.publicKeySuffix)));
+		} catch (IOException e) {
+			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);
+		}
+
+		return "key"; // TODO HANDLE THIS CASE
 	}
 
 	@Override
 	public String getPrivateRSAKey() {
-		return "key";
+		Base64.Encoder encoder = Base64.getEncoder();
+		String keyDirPath = String.join(File.separator,".", this.parameters.keyDir, this.parameters.privateKeyDir,this.userName);
+
+		try {
+			byte[] privateEncryptedKey = Files.readAllBytes(Paths.get(keyDirPath+this.parameters.privateKeySuffix));
+			byte[] value = this.AESDecrypt(privateEncryptedKey, this.userPassword, CipherAlgorithmMode.CBC);
+			if (value == null) {
+				LOGGER.log(Level.WARNING, "-W- Unable to decrypt private key");
+			}
+			return encoder.encodeToString(value);
+		} catch (IOException e) {
+			LOGGER.log(Level.WARNING, "-E- readAllBytes IOException", e);
+		}
+		return "key"; // TODO HANDLE THIS CASE
 	}
 
 	@Override
@@ -64,11 +93,10 @@ public class CryptoComponent implements ICryptoComponent {
 	public void generateSessionKey(){
 		ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
 		buffer.putLong(System.currentTimeMillis());
-		SecretKeySpec skeySpec = new SecretKeySpec(buffer.array(), this.parameters.encryptionAlgorithm);
-		this.sessionKey = skeySpec;
+		this.sessionKey = new SecretKeySpec(buffer.array(), this.parameters.encryptionAlgorithm);
 	}
 
-	private Boolean _generateRSAKeyPair(String outFileName) {
+	private Boolean _generateRSAKeyPair() {
         /*
         Description:
             Method that generates RSA key pair and stores them on drive.
@@ -79,9 +107,8 @@ public class CryptoComponent implements ICryptoComponent {
          */
 
 		ArrayList<Boolean> returnCodes = new ArrayList<>();
-		if (outFileName.equals("")) outFileName = BASE_RSA_FILE_NAME;
-		String publicKeyFileName = outFileName + "Public.bin";
-		String privateKeyFileName = outFileName + "Private.bin";
+		String publicKeyFileName = this.userName + this.parameters.publicKeySuffix;
+		String privateKeyFileName = this.userName + this.parameters.privateKeySuffix;
 
 		KeyPairGenerator kpg;
 		try {
@@ -108,7 +135,6 @@ public class CryptoComponent implements ICryptoComponent {
 
 		Base64.Encoder encoder = Base64.getEncoder();
 		IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
-		//SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), this.parameters.encryptionAlgorithm);
 		String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, cipherMode.name(), this.parameters.paddingMethod);
 
 		try {
@@ -137,7 +163,6 @@ public class CryptoComponent implements ICryptoComponent {
 	public byte[] AESDecrypt(byte[] value, String key, CipherAlgorithmMode cipherMode) {
 		try {
 			IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
-			//SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), "AES");
 
 			String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, cipherMode.name(), this.parameters.paddingMethod);
 			Cipher cipher = Cipher.getInstance(cipherInstance);
@@ -200,31 +225,22 @@ public class CryptoComponent implements ICryptoComponent {
         Return Value(s):
             Boolean.TRUE on success, Boolean.FALSE on failure
          */
-		String KEY_DIRECTORY_NAME = "TotallyNotKeys";
-		String PRIVATE_DIR_NAME = "NotPrivateKeyDirectory";
-		if (outFileName.equals("")) outFileName = BASE_RSA_FILE_NAME;
 		Base64.Encoder encoder = Base64.getEncoder();
 		Writer out;
 
 		try {
-			String keyDirPath = "." + File.separator + KEY_DIRECTORY_NAME + File.separator;
+			String keyDirPath = "." + File.separator + this.parameters.keyDir + File.separator;
 			if (encrypted) {
-				out = new FileWriter(keyDirPath + PRIVATE_DIR_NAME + File.separator + outFileName + ".key");
-				try {
-					// Saving secret key using AES with hash from user pwd as key
-					MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);
-					byte[] encodedhash = digest.digest(this.userPassword.getBytes(StandardCharsets.UTF_8));
-					byte[] value = this.AESEncrypt(key.getEncoded(), new String(encodedhash), this.parameters.cipherAlgMode.CBC);
-					if (value == null) {
-						System.out.println("-E- Failed to AESEncrypt private key!");
-						return Boolean.FALSE;
-					}
-					out.write(encoder.encodeToString(value));
-				}catch(NoSuchAlgorithmException e){
-					LOGGER.log(Level.SEVERE, "-E- Incorrect hash function name", e);
+				out = new FileWriter(keyDirPath + this.parameters.privateKeyDir + File.separator + outFileName);
+				// Saving secret key using AES with hash from user pwd as key
+				byte[] value = this.AESEncrypt(key.getEncoded(), this.userPassword, CipherAlgorithmMode.CBC);
+				if (value == null) {
+					System.out.println("-E- Failed to AESEncrypt private key!");
+					return Boolean.FALSE;
 				}
+				out.write(encoder.encodeToString(value));
 			} else {
-				out = new FileWriter(keyDirPath + outFileName + ".key");
+				out = new FileWriter(keyDirPath + outFileName);
 				out.write(encoder.encodeToString(key.getEncoded()));
 			}
 		} catch (IOException e) {
