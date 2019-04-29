@@ -37,6 +37,7 @@ public class CryptoComponent implements ICryptoComponent {
 
 	@Override
 	public void loginUser(String login, String pwd){
+		this.generateRSAKeyPair();
 		this.userName = login;
 		try{
 			MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);

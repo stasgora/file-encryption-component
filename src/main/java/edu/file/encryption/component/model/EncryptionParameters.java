@@ -18,7 +18,7 @@ public class EncryptionParameters {
 	public String privateKeyDir = "NotPrivateKeyDirectory";
 	public String publicKeySuffix = "Public.key";
 	public String privateKeySuffix = "Private.key";
-	
+
 	public String fileName;
 	public int fileLength;
 
