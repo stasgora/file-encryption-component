@@ -37,7 +37,6 @@ public class CryptoComponent implements ICryptoComponent {
 
 	@Override
 	public void loginUser(String login, String pwd){
-		this.generateRSAKeyPair();
 		this.userName = login;
 		try{
 			MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);
@@ -47,6 +46,9 @@ public class CryptoComponent implements ICryptoComponent {
 		}catch(NoSuchAlgorithmException e){
 			LOGGER.log(Level.SEVERE, "-E- Incorrect hash function name", e);
 		}
+		LOGGER.log(Level.WARNING, "-I- Proceeding to generate RSA");
+		this.generateRSAKeyPair();
+		this.generateSessionKey();
 	}
 
 	@Override
@@ -232,6 +234,14 @@ public class CryptoComponent implements ICryptoComponent {
 		try {
 			String keyDirPath = "." + File.separator + this.parameters.keyDir + File.separator;
 			if (encrypted) {
+				LOGGER.log(Level.WARNING, "-I- Checking for private Key localization");
+				File file = new File(keyDirPath+ this.parameters.privateKeyDir + File.separator);
+				if(!file.exists()){
+					file.mkdirs();
+					LOGGER.log(Level.WARNING, "Created directory for private key");
+				}else{
+					LOGGER.log(Level.WARNING, "Location for private keys exist");
+				}
 				out = new FileWriter(keyDirPath + this.parameters.privateKeyDir + File.separator + outFileName);
 				// Saving secret key using AES with hash from user pwd as key
 				byte[] value = this.AESEncrypt(key.getEncoded(), this.userPassword, CipherAlgorithmMode.CBC);
@@ -241,6 +251,14 @@ public class CryptoComponent implements ICryptoComponent {
 				}
 				out.write(encoder.encodeToString(value));
 			} else {
+				LOGGER.log(Level.WARNING, "-I- Checking for public Key localization");
+				File file = new File(keyDirPath);
+				if(!file.exists()){
+					file.mkdirs();
+					LOGGER.log(Level.WARNING, "Created directory for public key");
+				}else{
+					LOGGER.log(Level.WARNING, "Location exist");
+				}
 				out = new FileWriter(keyDirPath + outFileName);
 				out.write(encoder.encodeToString(key.getEncoded()));
 			}
