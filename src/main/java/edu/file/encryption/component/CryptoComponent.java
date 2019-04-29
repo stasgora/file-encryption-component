@@ -99,12 +99,12 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public byte[] AESEncrypt(byte[] value, String key) {
+	public byte[] AESEncrypt(byte[] value, String key, CipherAlgorithmMode cipherMode) {
 
 		Base64.Encoder encoder = Base64.getEncoder();
 		IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
 		//SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), this.parameters.encryptionAlgorithm);
-		String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, CipherAlgorithmMode.CBC.name(), this.parameters.paddingMethod);
+		String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, cipherMode.name(), this.parameters.paddingMethod);
 
 		try {
 			Cipher cipher = Cipher.getInstance(cipherInstance);
@@ -129,12 +129,12 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public byte[] AESDecrypt(byte[] value, String key) {
+	public byte[] AESDecrypt(byte[] value, String key, CipherAlgorithmMode cipherMode) {
 		try {
 			IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
 			//SecretKeySpec skeySpec = new SecretKeySpec(this.userPassword.getBytes(StandardCharsets.UTF_8), "AES");
 
-			String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, CipherAlgorithmMode.CBC.name(), this.parameters.paddingMethod);
+			String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, cipherMode.name(), this.parameters.paddingMethod);
 			Cipher cipher = Cipher.getInstance(cipherInstance);
 			cipher.init(Cipher.DECRYPT_MODE, this.sessionKey, iv);
 			return cipher.doFinal(value);
@@ -209,7 +209,7 @@ public class CryptoComponent implements ICryptoComponent {
 					// Saving secret key using AES with hash from user pwd as key
 					MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);
 					byte[] encodedhash = digest.digest(this.userPassword.getBytes(StandardCharsets.UTF_8));
-					byte[] value = this.AESEncrypt(key.getEncoded(), new String(encodedhash));
+					byte[] value = this.AESEncrypt(key.getEncoded(), new String(encodedhash), this.parameters.cipherAlgMode.CBC);
 					if (value == null) {
 						System.out.println("-E- Failed to AESEncrypt private key!");
 						return Boolean.FALSE;

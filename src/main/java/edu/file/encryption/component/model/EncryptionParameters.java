@@ -1,5 +1,7 @@
 package edu.file.encryption.component.model;
 
+import edu.file.encryption.component.enums.CipherAlgorithmMode;
+
 public class EncryptionParameters {
 
 	public String initialVector = "completelySecure";
@@ -9,6 +11,7 @@ public class EncryptionParameters {
 	public String RSA_name = "RSA";
 	public int RSA_keySize = 2048;
 
+	public CipherAlgorithmMode cipherAlgMode;
 	public String hashFunctionName = "SHA-256";
 
 	public String fileName;
