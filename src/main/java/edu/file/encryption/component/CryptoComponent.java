@@ -217,12 +217,6 @@ public class CryptoComponent implements ICryptoComponent {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			PublicKey pKey = keyFactory.generatePublic(keySpec);
 			cipher.init(Cipher.ENCRYPT_MODE, pKey);
-			LOGGER.log(Level.INFO, "Encrypting value size: "+value.getBytes().length);
-
-			//String encryptedString = new String(cipher.doFinal(value.getBytes()));
-			String encryptedString = DatatypeConverter.printBase64Binary(cipher.doFinal(value.getBytes()));
-			LOGGER.log(Level.INFO, "After Encrypting value size BYTES: "+cipher.doFinal(value.getBytes()).length);
-			LOGGER.log(Level.INFO, "After Encrypting value size: "+encryptedString.getBytes().length);
 			return cipher.doFinal(value.getBytes());
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
@@ -239,8 +233,6 @@ public class CryptoComponent implements ICryptoComponent {
 
 	@Override
 	public String RSADecrypt(byte[] value, String key) {
-		LOGGER.log(Level.INFO,"RSADecrypt");
-
 		try {
 			Cipher cipher = Cipher.getInstance("RSA");
 
@@ -249,8 +241,7 @@ public class CryptoComponent implements ICryptoComponent {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			PrivateKey pKey = keyFactory.generatePrivate(keySpec);
 			cipher.init(Cipher.DECRYPT_MODE, pKey);
-			String encryptedString = new String(cipher.doFinal(value));
-			return encryptedString;
+			return new String(cipher.doFinal(value));
 
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
