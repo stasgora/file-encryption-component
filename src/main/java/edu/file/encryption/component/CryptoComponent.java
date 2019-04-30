@@ -11,6 +11,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.sound.sampled.LineEvent;
+import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -203,7 +204,7 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public String RSAEncrypt(String value, String key) {
+	public byte[] RSAEncrypt(String value, String key) {
 		try {
 			Cipher cipher = Cipher.getInstance("RSA");
 
@@ -212,17 +213,13 @@ public class CryptoComponent implements ICryptoComponent {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			PublicKey pKey = keyFactory.generatePublic(keySpec);
 			cipher.init(Cipher.ENCRYPT_MODE, pKey);
+			LOGGER.log(Level.INFO, "Encrypting value size: "+value.getBytes().length);
 
-			int maxRSAblockLength = this.parameters.RSA_keySize / 8;
-
-			byte[] encryptedBytes = new byte[((int)(value.getBytes().length / maxRSAblockLength)+1) * maxRSAblockLength];
-			for(int i=0;i<value.getBytes().length;i+=maxRSAblockLength){
-				String str = new String(value.getBytes(), i*maxRSAblockLength, Math.min(value.getBytes().length,maxRSAblockLength));
-				byte[] bStr = cipher.doFinal(str.getBytes());
-				System.arraycopy(bStr, 0, encryptedBytes, i*maxRSAblockLength, bStr.length);
-			}
-			String encryptedString = new String(encryptedBytes);
-			return encryptedString;
+			//String encryptedString = new String(cipher.doFinal(value.getBytes()));
+			String encryptedString = DatatypeConverter.printBase64Binary(cipher.doFinal(value.getBytes()));
+			LOGGER.log(Level.INFO, "After Encrypting value size BYTES: "+cipher.doFinal(value.getBytes()).length);
+			LOGGER.log(Level.INFO, "After Encrypting value size: "+encryptedString.getBytes().length);
+			return cipher.doFinal(value.getBytes());
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
 		}catch(InvalidKeyException e){
@@ -233,11 +230,12 @@ public class CryptoComponent implements ICryptoComponent {
 			LOGGER.log(Level.WARNING, "Invalid key spec in RSA Encrypt", e);
 		}
 		LOGGER.log(Level.WARNING, "-W- message failed encryption process");
-		return "000"; // TODO: HANDLE THIS
+		return null; // TODO: HANDLE THIS
 	}
 
 	@Override
-	public String RSADecrypt(String value, String key) {
+	public String RSADecrypt(byte[] value, String key) {
+		LOGGER.log(Level.INFO,"RSADecrypt");
 
 		try {
 			Cipher cipher = Cipher.getInstance("RSA");
@@ -247,22 +245,7 @@ public class CryptoComponent implements ICryptoComponent {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			PrivateKey pKey = keyFactory.generatePrivate(keySpec);
 			cipher.init(Cipher.DECRYPT_MODE, pKey);
-			LOGGER.log(Level.WARNING,"Decryption size: "+value.getBytes().length);
-
-			int maxRSAblockLength = this.parameters.RSA_keySize / 8;
-			int unprocessedLength = value.getBytes().length;
-			LOGGER.log(Level.INFO, "maxRSABolckLength: "+ maxRSAblockLength);
-
-			byte[] encryptedBytes = new byte[((int)(value.getBytes().length / maxRSAblockLength)+1) * maxRSAblockLength];
-			for(int i=0;i<value.getBytes().length;i+=maxRSAblockLength){
-				String str = new String(value.getBytes(), i*maxRSAblockLength, Math.min(unprocessedLength,maxRSAblockLength));
-				LOGGER.log(Level.WARNING, "unprocessedLEngth: "+unprocessedLength);
-				byte[] bStr = cipher.doFinal(str.getBytes());
-				LOGGER.log(Level.WARNING, "bStr length: "+bStr.length);
-				System.arraycopy(bStr, 0, encryptedBytes, i*maxRSAblockLength, bStr.length);
-				unprocessedLength -= maxRSAblockLength;
-			}
-			String encryptedString = new String(encryptedBytes);
+			String encryptedString = new String(cipher.doFinal(value));
 			return encryptedString;
 
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){

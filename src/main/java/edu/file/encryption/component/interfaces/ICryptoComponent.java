@@ -21,9 +21,9 @@ public interface ICryptoComponent {
 
 	byte[] AESDecrypt(byte[] value, String key, CipherAlgorithmMode cipherMode);
 
-	String RSAEncrypt(String value, String key);
+	byte[] RSAEncrypt(String value, String key);
 
-	String RSADecrypt(String value, String key);
+	String RSADecrypt(byte[] value, String key);
 
 	EncryptionParameters getParameters();
 
