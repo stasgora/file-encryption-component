@@ -10,7 +10,7 @@ public class EncryptionParameters {
 
 	public int RSA_keySize = 4096;
 	public CipherAlgorithmMode cipherAlgMode;
-	public String fileName;
+
 	public String recipient;
 	public int fileLength;
 
