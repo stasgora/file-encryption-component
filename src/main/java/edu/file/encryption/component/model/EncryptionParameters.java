@@ -20,6 +20,7 @@ public class EncryptionParameters {
 	public String privateKeySuffix = "Private.key";
 
 	public String fileName;
+	public String recipient;
 	public int fileLength;
 
 }
