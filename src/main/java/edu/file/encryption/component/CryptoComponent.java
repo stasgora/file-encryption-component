@@ -195,7 +195,11 @@ public class CryptoComponent implements ICryptoComponent {
 			byte[] byteKey = key.getBytes();
 			SecretKeySpec sKey = new SecretKeySpec(byteKey, 0, 32, "AES");
 			cipher.init(Cipher.DECRYPT_MODE, sKey, iv);
-			return cipher.doFinal(Base64.getDecoder().decode(value));
+
+			if(value.length % 16 != 0){
+				value = Base64.getDecoder().decode(value);
+			}
+			return cipher.doFinal(value);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			LOGGER.log(Level.WARNING, "-E- Failure when working with Cipher", ex);
