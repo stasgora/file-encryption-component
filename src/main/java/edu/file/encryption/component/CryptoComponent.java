@@ -33,6 +33,12 @@ public class CryptoComponent implements ICryptoComponent {
 	private String userPassword;
 	private SecretKeySpec sessionKey;
 
+	private String keyDir = "TotallyNotKeys";
+	private String privateKeyDir = "NotPrivateKeyDirectory";
+	private String publicKeySuffix = "Public.key";
+	private String privateKeySuffix = "Private.key";
+	private String hashFunctionName = "SHA-256";
+
 	private EncryptionParameters parameters;
 	private static final Logger LOGGER = Logger.getLogger(CryptoComponent.class.getName());
 
@@ -45,7 +51,7 @@ public class CryptoComponent implements ICryptoComponent {
 	public void loginUser(String login, String pwd){
 		this.userName = login;
 		try{
-			MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);
+			MessageDigest digest = MessageDigest.getInstance(this.hashFunctionName);
 			byte[] encodedhash = digest.digest(pwd.getBytes(StandardCharsets.UTF_8));
 			this.userPassword = new String(encodedhash);
 
@@ -64,10 +70,10 @@ public class CryptoComponent implements ICryptoComponent {
 
 	@Override
 	public String getPublicRSAKey() {
-		String keyDirPath = String.join(File.separator,".", this.parameters.keyDir, this.userName);
+		String keyDirPath = String.join(File.separator,".", this.keyDir, this.userName);
 
 		try {
-			String publicRSAKey = new String(Files.readAllBytes(Paths.get(keyDirPath+this.parameters.publicKeySuffix)));
+			String publicRSAKey = new String(Files.readAllBytes(Paths.get(keyDirPath+this.publicKeySuffix)));
 			return publicRSAKey;
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);
@@ -79,10 +85,10 @@ public class CryptoComponent implements ICryptoComponent {
 	@Override
 	public String getPrivateRSAKey() {
 		Base64.Encoder encoder = Base64.getEncoder();
-		String keyDirPath = String.join(File.separator,".", this.parameters.keyDir, this.parameters.privateKeyDir,this.userName);
+		String keyDirPath = String.join(File.separator,".", this.keyDir, this.privateKeyDir,this.userName);
 
 		try {
-			byte[] privateEncryptedKey = Files.readAllBytes(Paths.get(keyDirPath+this.parameters.privateKeySuffix));
+			byte[] privateEncryptedKey = Files.readAllBytes(Paths.get(keyDirPath+this.privateKeySuffix));
 			byte[] value = this.AESDecrypt(privateEncryptedKey, this.userPassword, CipherAlgorithmMode.CBC);
 			if (value == null) {
 				LOGGER.log(Level.WARNING, "-W- Unable to decrypt private key");
@@ -102,7 +108,7 @@ public class CryptoComponent implements ICryptoComponent {
 	@Override
 	public void generateSessionKey(){
 		try {
-			MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);
+			MessageDigest digest = MessageDigest.getInstance(this.hashFunctionName);
 			ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
 			buffer.putLong(System.currentTimeMillis());
 			byte[] encodedhash = digest.digest(buffer.array());
@@ -124,14 +130,14 @@ public class CryptoComponent implements ICryptoComponent {
          */
 
 		ArrayList<Boolean> returnCodes = new ArrayList<>();
-		String publicKeyFileName = this.userName + this.parameters.publicKeySuffix;
-		String privateKeyFileName = this.userName + this.parameters.privateKeySuffix;
+		String publicKeyFileName = this.userName + this.publicKeySuffix;
+		String privateKeyFileName = this.userName + this.privateKeySuffix;
 
 		KeyPairGenerator kpg;
 		try {
-			kpg = KeyPairGenerator.getInstance(this.parameters.RSA_name);
+			kpg = KeyPairGenerator.getInstance("RSA");
 		} catch (NoSuchAlgorithmException e) {
-			LOGGER.log(Level.WARNING, "-E- No instance named "+this.parameters.RSA_name, e);
+			LOGGER.log(Level.WARNING, "-E- No instance named RSA", e);
 			return Boolean.FALSE;
 		}
 		kpg.initialize(this.parameters.RSA_keySize);
@@ -206,7 +212,17 @@ public class CryptoComponent implements ICryptoComponent {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			PublicKey pKey = keyFactory.generatePublic(keySpec);
 			cipher.init(Cipher.ENCRYPT_MODE, pKey);
-			return new String(cipher.doFinal(value.getBytes()));
+
+			int maxRSAblockLength = this.parameters.RSA_keySize / 8;
+
+			byte[] encryptedBytes = new byte[((int)(value.getBytes().length / maxRSAblockLength)+1) * maxRSAblockLength];
+			for(int i=0;i<value.getBytes().length;i+=maxRSAblockLength){
+				String str = new String(value.getBytes(), i*maxRSAblockLength, Math.min(value.getBytes().length,maxRSAblockLength));
+				byte[] bStr = cipher.doFinal(str.getBytes());
+				System.arraycopy(bStr, 0, encryptedBytes, i*maxRSAblockLength, bStr.length);
+			}
+			String encryptedString = new String(encryptedBytes);
+			return encryptedString;
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
 		}catch(InvalidKeyException e){
@@ -231,8 +247,24 @@ public class CryptoComponent implements ICryptoComponent {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			PrivateKey pKey = keyFactory.generatePrivate(keySpec);
 			cipher.init(Cipher.DECRYPT_MODE, pKey);
-			System.out.println(value);
-			return new String(cipher.doFinal(value.getBytes()));
+			LOGGER.log(Level.WARNING,"Decryption size: "+value.getBytes().length);
+
+			int maxRSAblockLength = this.parameters.RSA_keySize / 8;
+			int unprocessedLength = value.getBytes().length;
+			LOGGER.log(Level.INFO, "maxRSABolckLength: "+ maxRSAblockLength);
+
+			byte[] encryptedBytes = new byte[((int)(value.getBytes().length / maxRSAblockLength)+1) * maxRSAblockLength];
+			for(int i=0;i<value.getBytes().length;i+=maxRSAblockLength){
+				String str = new String(value.getBytes(), i*maxRSAblockLength, Math.min(unprocessedLength,maxRSAblockLength));
+				LOGGER.log(Level.WARNING, "unprocessedLEngth: "+unprocessedLength);
+				byte[] bStr = cipher.doFinal(str.getBytes());
+				LOGGER.log(Level.WARNING, "bStr length: "+bStr.length);
+				System.arraycopy(bStr, 0, encryptedBytes, i*maxRSAblockLength, bStr.length);
+				unprocessedLength -= maxRSAblockLength;
+			}
+			String encryptedString = new String(encryptedBytes);
+			return encryptedString;
+
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
 		}catch(InvalidKeyException e){
@@ -261,15 +293,15 @@ public class CryptoComponent implements ICryptoComponent {
 		Writer out;
 
 		try {
-			String keyDirPath = "." + File.separator + this.parameters.keyDir + File.separator;
+			String keyDirPath = "." + File.separator + this.keyDir + File.separator;
 			if (encrypted) {
 				LOGGER.log(Level.INFO, "-I- Checking for private Key localization");
-				File file = new File(keyDirPath+ this.parameters.privateKeyDir + File.separator);
+				File file = new File(keyDirPath+ this.privateKeyDir + File.separator);
 				if(!file.exists()){
 					file.mkdirs();
 					LOGGER.log(Level.INFO, "Created directory for private key");
 				}
-				out = new FileWriter(keyDirPath + this.parameters.privateKeyDir + File.separator + outFileName, false);
+				out = new FileWriter(keyDirPath + this.privateKeyDir + File.separator + outFileName, false);
 				// Saving secret key using AES with hash from user pwd as key
 				byte[] value = this.AESEncrypt(key.getEncoded(), this.userPassword, CipherAlgorithmMode.CBC);
 				if (value == null) {
