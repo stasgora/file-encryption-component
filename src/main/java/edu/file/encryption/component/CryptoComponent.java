@@ -10,12 +10,18 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.sound.sampled.LineEvent;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.*;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPrivateCrtKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.logging.Level;
@@ -61,7 +67,8 @@ public class CryptoComponent implements ICryptoComponent {
 		String keyDirPath = String.join(File.separator,".", this.parameters.keyDir, this.userName);
 
 		try {
-			return new String(Files.readAllBytes(Paths.get(keyDirPath+this.parameters.publicKeySuffix)));
+			String publicRSAKey = new String(Files.readAllBytes(Paths.get(keyDirPath+this.parameters.publicKeySuffix)));
+			return publicRSAKey;
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);
 		}
@@ -94,9 +101,16 @@ public class CryptoComponent implements ICryptoComponent {
 
 	@Override
 	public void generateSessionKey(){
-		ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-		buffer.putLong(System.currentTimeMillis());
-		this.sessionKey = new SecretKeySpec(buffer.array(), this.parameters.encryptionAlgorithm);
+		try {
+			MessageDigest digest = MessageDigest.getInstance(this.parameters.hashFunctionName);
+			ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+			buffer.putLong(System.currentTimeMillis());
+			byte[] encodedhash = digest.digest(buffer.array());
+			LOGGER.log(Level.INFO, "-I- creating session key from time hash");
+			this.sessionKey = new SecretKeySpec(encodedhash, 0 ,32, this.parameters.encryptionAlgorithm);
+		}catch(NoSuchAlgorithmException e){
+			LOGGER.log(Level.WARNING, "-W- Did not create hash for session key.");
+		}
 	}
 
 	private Boolean _generateRSAKeyPair() {
@@ -135,17 +149,13 @@ public class CryptoComponent implements ICryptoComponent {
 
 	@Override
 	public byte[] AESEncrypt(byte[] value, String key, CipherAlgorithmMode cipherMode) {
-
-		Base64.Encoder encoder = Base64.getEncoder();
 		IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
 		String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, cipherMode.name(), this.parameters.paddingMethod);
 
 		try {
 			Cipher cipher = Cipher.getInstance(cipherInstance);
-			//byte[] byteKey = Base64.getDecoder().decode(key);
 			byte[] byteKey = key.getBytes();
 
-			System.out.println("DUPA1: "+key);
 			SecretKeySpec sKey = new SecretKeySpec(byteKey,0, 32, "AES");
 			cipher.init(Cipher.ENCRYPT_MODE, sKey, iv);
 			return cipher.doFinal(value);
@@ -156,8 +166,7 @@ public class CryptoComponent implements ICryptoComponent {
 			LOGGER.log(Level.WARNING, "-E- Invalid Cipher parameters!", e);
 			return null;
 		} catch (InvalidKeyException e) {
-			LOGGER.log(Level.WARNING, "-E- Invalid Key", e);
-			System.out.println("DUPA: "+key);
+			LOGGER.log(Level.WARNING, "-E- Invalid Key: "+key, e);
 			return null;
 		} catch (IllegalBlockSizeException e) {
 			LOGGER.log(Level.WARNING, "-E- Illegal block size", e);
@@ -176,10 +185,10 @@ public class CryptoComponent implements ICryptoComponent {
 			String cipherInstance = String.join("/", this.parameters.encryptionAlgorithm, cipherMode.name(), this.parameters.paddingMethod);
 			Cipher cipher = Cipher.getInstance(cipherInstance);
 
-			byte[] byteKey = Base64.getDecoder().decode(key);
+			byte[] byteKey = key.getBytes();
 			SecretKeySpec sKey = new SecretKeySpec(byteKey, 0, 32, "AES");
 			cipher.init(Cipher.DECRYPT_MODE, sKey, iv);
-			return cipher.doFinal(value);
+			return cipher.doFinal(Base64.getDecoder().decode(value));
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			LOGGER.log(Level.WARNING, "-E- Failure when working with Cipher", ex);
@@ -192,8 +201,11 @@ public class CryptoComponent implements ICryptoComponent {
 		try {
 			Cipher cipher = Cipher.getInstance("RSA");
 
-			SecretKeySpec skeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8),"RSA");
-			cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
+			byte[] pBytes = Base64.getDecoder().decode(key);
+			X509EncodedKeySpec keySpec = new X509EncodedKeySpec(pBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			PublicKey pKey = keyFactory.generatePublic(keySpec);
+			cipher.init(Cipher.ENCRYPT_MODE, pKey);
 			return new String(cipher.doFinal(value.getBytes()));
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
@@ -201,9 +213,11 @@ public class CryptoComponent implements ICryptoComponent {
 			LOGGER.log(Level.WARNING, "-E- Invalid key during RSAEncryption", e);
 		}catch(IllegalBlockSizeException | BadPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Illegal block size or bad padding during RSAEncryption", e);
+		}catch(InvalidKeySpecException e){
+			LOGGER.log(Level.WARNING, "Invalid key spec in RSA Encrypt", e);
 		}
 		LOGGER.log(Level.WARNING, "-W- message failed encryption process");
-		return value;
+		return "000"; // TODO: HANDLE THIS
 	}
 
 	@Override
@@ -212,8 +226,12 @@ public class CryptoComponent implements ICryptoComponent {
 		try {
 			Cipher cipher = Cipher.getInstance("RSA");
 
-			SecretKeySpec skeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8),"RSA");
-			cipher.init(Cipher.DECRYPT_MODE, skeySpec);
+			byte[] pBytes = Base64.getDecoder().decode(key);
+			PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(pBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			PrivateKey pKey = keyFactory.generatePrivate(keySpec);
+			cipher.init(Cipher.DECRYPT_MODE, pKey);
+			System.out.println(value);
 			return new String(cipher.doFinal(value.getBytes()));
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
@@ -221,9 +239,11 @@ public class CryptoComponent implements ICryptoComponent {
 			LOGGER.log(Level.WARNING, "-E- Invalid key during RSADecryption", e);
 		}catch(IllegalBlockSizeException | BadPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Illegal block size or bad padding during RSADecryption", e);
+		}catch(InvalidKeySpecException e){
+			LOGGER.log(Level.WARNING, "Invalid key spec in RSA Decrypt", e);
 		}
 		LOGGER.log(Level.WARNING, "-W- message failed decryption process");
-		return value;
+		return "000"; // TODO: HANDLE THIS
 	}
 
 	private Boolean saveKeyOnDrive(Key key, boolean encrypted, String outFileName) {
@@ -243,33 +263,31 @@ public class CryptoComponent implements ICryptoComponent {
 		try {
 			String keyDirPath = "." + File.separator + this.parameters.keyDir + File.separator;
 			if (encrypted) {
-				LOGGER.log(Level.WARNING, "-I- Checking for private Key localization");
+				LOGGER.log(Level.INFO, "-I- Checking for private Key localization");
 				File file = new File(keyDirPath+ this.parameters.privateKeyDir + File.separator);
 				if(!file.exists()){
 					file.mkdirs();
-					LOGGER.log(Level.WARNING, "Created directory for private key");
-				}else{
-					LOGGER.log(Level.WARNING, "Location for private keys exist");
+					LOGGER.log(Level.INFO, "Created directory for private key");
 				}
-				out = new FileWriter(keyDirPath + this.parameters.privateKeyDir + File.separator + outFileName);
+				out = new FileWriter(keyDirPath + this.parameters.privateKeyDir + File.separator + outFileName, false);
 				// Saving secret key using AES with hash from user pwd as key
 				byte[] value = this.AESEncrypt(key.getEncoded(), this.userPassword, CipherAlgorithmMode.CBC);
 				if (value == null) {
-					System.out.println("-E- Failed to AESEncrypt private key!");
+					LOGGER.log(Level.WARNING, "-E- Failed to AESEncrypt private key!");
 					return Boolean.FALSE;
 				}
 				out.write(encoder.encodeToString(value));
+				out.close();
 			} else {
-				LOGGER.log(Level.WARNING, "-I- Checking for public Key localization");
+				LOGGER.log(Level.INFO, "-I- Checking for public Key localization");
 				File file = new File(keyDirPath);
 				if(!file.exists()){
 					file.mkdirs();
-					LOGGER.log(Level.WARNING, "Created directory for public key");
-				}else{
-					LOGGER.log(Level.WARNING, "Location exist");
+					LOGGER.log(Level.INFO, "Created directory for public key");
 				}
-				out = new FileWriter(keyDirPath + outFileName);
+				out = new FileWriter(keyDirPath + outFileName, false);
 				out.write(encoder.encodeToString(key.getEncoded()));
+				out.close();
 			}
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);

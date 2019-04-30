@@ -9,7 +9,7 @@ public class EncryptionParameters {
 	public String paddingMethod = "PKCS5PADDING";
 
 	public String RSA_name = "RSA";
-	public int RSA_keySize = 2048;
+	public int RSA_keySize = 4096;
 
 	public CipherAlgorithmMode cipherAlgMode;
 	public String hashFunctionName = "SHA-256";
