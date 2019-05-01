@@ -1,6 +1,8 @@
 package edu.file.encryption.component;
 
 import edu.file.encryption.component.enums.CipherAlgorithmMode;
+import edu.file.encryption.component.exceptions.NoRSAKeyFoundException;
+import edu.file.encryption.component.exceptions.WrongKeyException;
 import edu.file.encryption.component.interfaces.ICryptoComponent;
 import edu.file.encryption.component.model.EncryptionParameters;
 
@@ -49,19 +51,39 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
+	public String getUserName(){
+		return this.userName;
+	}
+
+	private Boolean checkForUserKeys(String login){
+		String pubKeyDirPath = String.join(File.separator,".", this.keyDir,login);
+		String privKeyDirPath = String.join(File.separator,".", this.keyDir, this.privateKeyDir,login);
+
+		File pubKey = new File(pubKeyDirPath + this.publicKeySuffix);
+		File privKey = new File(privKeyDirPath + this.privateKeySuffix);
+
+		if(pubKey.exists() && privKey.exists()){
+			return Boolean.TRUE;
+		}
+		return Boolean.FALSE;
+	}
+
+	@Override
 	public void loginUser(String login, String pwd){
 		this.userName = login;
 		try{
 			MessageDigest digest = MessageDigest.getInstance(this.hashFunctionName);
 			byte[] encodedhash = digest.digest(pwd.getBytes(StandardCharsets.UTF_8));
-			this.userPassword = new String(encodedhash);
+			this.userPassword = Base64.getEncoder().encodeToString(encodedhash);
 
 		}catch(NoSuchAlgorithmException e){
 			LOGGER.log(Level.SEVERE, "-E- Incorrect hash function name", e);
 		}
-		LOGGER.log(Level.WARNING, "-I- Proceeding to generate RSA");
-		this.generateRSAKeyPair();
-		this.generateSessionKey();
+
+		if(checkForUserKeys(this.userName) == Boolean.FALSE){
+			LOGGER.log(Level.INFO, "No keys for user, generating new ones");
+			this.generateRSAKeyPair();
+		}
 	}
 
 	@Override
@@ -70,7 +92,7 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public String getPublicRSAKey() {
+	public String getPublicRSAKey() throws NoRSAKeyFoundException {
 		String keyDirPath = String.join(File.separator,".", this.keyDir, this.userName);
 
 		try {
@@ -79,26 +101,31 @@ public class CryptoComponent implements ICryptoComponent {
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);
 		}
-
-		return "key"; // TODO HANDLE THIS CASE
+		throw new NoRSAKeyFoundException("Failed to get Public RSA key for user "+this.userName);
 	}
 
 	@Override
-	public String getPrivateRSAKey() {
+	public String getPrivateRSAKey() throws NoRSAKeyFoundException, WrongKeyException {
 		Base64.Encoder encoder = Base64.getEncoder();
 		String keyDirPath = String.join(File.separator,".", this.keyDir, this.privateKeyDir,this.userName);
 
 		try {
 			byte[] privateEncryptedKey = Files.readAllBytes(Paths.get(keyDirPath+this.privateKeySuffix));
+			String oldIV = this.parameters.initialVector;
+			this.parameters.initialVector = "0123456789012345";
 			byte[] value = this.AESDecrypt(privateEncryptedKey, this.userPassword, CipherAlgorithmMode.CBC);
+			this.parameters.initialVector = oldIV;
 			if (value == null) {
 				LOGGER.log(Level.WARNING, "-W- Unable to decrypt private key");
 			}
 			return encoder.encodeToString(value);
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- readAllBytes IOException", e);
+		}catch(WrongKeyException e){
+			LOGGER.log(Level.WARNING, "-E- readAllBytes IOException", e);
+			throw new WrongKeyException("Wrong private key!");
 		}
-		return "key"; // TODO HANDLE THIS CASE
+		throw new NoRSAKeyFoundException("Failed to get Private RSA key for user "+this.userName);
 	}
 
 	@Override
@@ -185,7 +212,7 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public byte[] AESDecrypt(byte[] value, String key, CipherAlgorithmMode cipherMode) {
+	public byte[] AESDecrypt(byte[] value, String key, CipherAlgorithmMode cipherMode) throws WrongKeyException {
 		try {
 			IvParameterSpec iv = new IvParameterSpec(parameters.initialVector.getBytes(StandardCharsets.UTF_8));
 
@@ -200,11 +227,22 @@ public class CryptoComponent implements ICryptoComponent {
 				value = Base64.getDecoder().decode(value);
 			}
 			return cipher.doFinal(value);
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			LOGGER.log(Level.WARNING, "-E- Failure when working with Cipher", ex);
+		} catch (NoSuchAlgorithmException e) {
+			LOGGER.log(Level.SEVERE, "-E- NoSuchAlgorithmException when working with Cipher!", e);
+			return null;
+		} catch (NoSuchPaddingException | InvalidAlgorithmParameterException e) {
+			LOGGER.log(Level.WARNING, "-E- Invalid Cipher parameters!", e);
+			return null;
+		} catch (InvalidKeyException e) {
+			LOGGER.log(Level.WARNING, "-E- Invalid Key: "+key, e);
+			return null;
+		} catch (IllegalBlockSizeException e) {
+			LOGGER.log(Level.WARNING, "-E- Illegal block size", e);
+			return null;
+		} catch (BadPaddingException e) {
+			LOGGER.log(Level.WARNING, "-E- Bad padding", e);
+			throw new WrongKeyException("Wrong key!");
 		}
-		return null;
 	}
 
 	@Override
@@ -247,13 +285,16 @@ public class CryptoComponent implements ICryptoComponent {
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
 		}catch(InvalidKeyException e){
 			LOGGER.log(Level.WARNING, "-E- Invalid key during RSADecryption", e);
-		}catch(IllegalBlockSizeException | BadPaddingException e){
-			LOGGER.log(Level.WARNING, "-E- Illegal block size or bad padding during RSADecryption", e);
+		}catch(IllegalBlockSizeException e){
+			LOGGER.log(Level.WARNING, "-E- Illegal block size", e);
 		}catch(InvalidKeySpecException e){
 			LOGGER.log(Level.WARNING, "Invalid key spec in RSA Decrypt", e);
+		}catch(BadPaddingException e){
+			LOGGER.log(Level.WARNING, "Bad pading in RSA Decrypt", e);
+
 		}
 		LOGGER.log(Level.WARNING, "-W- message failed decryption process");
-		return "000"; // TODO: HANDLE THIS
+		return Base64.getEncoder().encodeToString(value); // TODO: HANDLE THIS
 	}
 
 	private Boolean saveKeyOnDrive(Key key, boolean encrypted, String outFileName) {
@@ -281,7 +322,10 @@ public class CryptoComponent implements ICryptoComponent {
 				}
 				out = new FileWriter(keyDirPath + this.privateKeyDir + File.separator + outFileName, false);
 				// Saving secret key using AES with hash from user pwd as key
+				String oldIV = this.parameters.initialVector;
+				this.parameters.initialVector = "0123456789012345";
 				byte[] value = this.AESEncrypt(key.getEncoded(), this.userPassword, CipherAlgorithmMode.CBC);
+				this.parameters.initialVector = oldIV;
 				if (value == null) {
 					LOGGER.log(Level.WARNING, "-E- Failed to AESEncrypt private key!");
 					return Boolean.FALSE;
