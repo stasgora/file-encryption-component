@@ -122,7 +122,6 @@ public class CryptoComponent implements ICryptoComponent {
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- readAllBytes IOException", e);
 		}catch(WrongKeyException e){
-			LOGGER.log(Level.WARNING, "-E- readAllBytes IOException", e);
 			throw new WrongKeyException("Wrong private key!");
 		}
 		throw new NoRSAKeyFoundException("Failed to get Private RSA key for user "+this.userName);
@@ -240,7 +239,6 @@ public class CryptoComponent implements ICryptoComponent {
 			LOGGER.log(Level.WARNING, "-E- Illegal block size", e);
 			return null;
 		} catch (BadPaddingException e) {
-			LOGGER.log(Level.WARNING, "-E- Bad padding", e);
 			throw new WrongKeyException("Wrong key!");
 		}
 	}
