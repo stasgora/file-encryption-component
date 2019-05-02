@@ -15,7 +15,7 @@ public interface ICryptoComponent {
 
 	void loginUser(String login, String pwd);
 
-	String getPublicRSAKey() throws NoRSAKeyFoundException;
+	String getPublicRSAKey(String user) throws NoRSAKeyFoundException;
 
 	String getPrivateRSAKey() throws NoRSAKeyFoundException, WrongKeyException;
 

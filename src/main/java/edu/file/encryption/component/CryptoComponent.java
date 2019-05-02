@@ -92,8 +92,12 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public String getPublicRSAKey() throws NoRSAKeyFoundException {
-		String keyDirPath = String.join(File.separator,".", this.keyDir, this.userName);
+	public String getPublicRSAKey(String user) throws NoRSAKeyFoundException {
+		Boolean userExist = checkForUserKeys(user);
+		if(userExist == Boolean.FALSE){
+			throw new NoRSAKeyFoundException("Failed to get Public RSA key for user "+user);
+		}
+		String keyDirPath = String.join(File.separator,".", this.keyDir, user);
 
 		try {
 			String publicRSAKey = new String(Files.readAllBytes(Paths.get(keyDirPath+this.publicKeySuffix)));
@@ -101,7 +105,7 @@ public class CryptoComponent implements ICryptoComponent {
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);
 		}
-		throw new NoRSAKeyFoundException("Failed to get Public RSA key for user "+this.userName);
+		throw new NoRSAKeyFoundException("Failed to get Public RSA key for user "+user);
 	}
 
 	@Override
