@@ -47,7 +47,6 @@ public class CryptoComponent implements ICryptoComponent {
 
 	public CryptoComponent() {
 		parameters = new EncryptionParameters();
-		this.generateSessionKey();
 	}
 
 	@Override
@@ -84,6 +83,7 @@ public class CryptoComponent implements ICryptoComponent {
 			LOGGER.log(Level.INFO, "No keys for user, generating new ones");
 			this.generateRSAKeyPair();
 		}
+		this.generateSessionKey();
 	}
 
 	@Override
