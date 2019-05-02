@@ -95,7 +95,17 @@ public class CryptoComponent implements ICryptoComponent {
 	public String getPublicRSAKey(String user) throws NoRSAKeyFoundException {
 		Boolean userExist = checkForUserKeys(user);
 		if(userExist == Boolean.FALSE){
-			return "";
+			KeyPairGenerator kpg;
+			try {
+				kpg = KeyPairGenerator.getInstance("RSA");
+			} catch (NoSuchAlgorithmException e) {
+				LOGGER.log(Level.WARNING, "-E- No instance named RSA", e);
+				return "";
+			}
+			kpg.initialize(this.parameters.RSA_keySize);
+			KeyPair keyPair = kpg.generateKeyPair();
+			Key publicKey = keyPair.getPublic();
+			return Base64.getEncoder().encodeToString(publicKey.getEncoded());
 		}
 		String keyDirPath = String.join(File.separator,".", this.keyDir, user);
 
