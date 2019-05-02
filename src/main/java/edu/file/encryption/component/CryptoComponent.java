@@ -282,7 +282,7 @@ public class CryptoComponent implements ICryptoComponent {
 	}
 
 	@Override
-	public String RSADecrypt(byte[] value, String key) {
+	public String RSADecrypt(byte[] value, String key) throws WrongKeyException {
 		try {
 			Cipher cipher = Cipher.getInstance("RSA");
 
@@ -302,8 +302,7 @@ public class CryptoComponent implements ICryptoComponent {
 		}catch(InvalidKeySpecException e){
 			LOGGER.log(Level.WARNING, "Invalid key spec in RSA Decrypt", e);
 		}catch(BadPaddingException e){
-			LOGGER.log(Level.WARNING, "Bad pading in RSA Decrypt", e);
-
+			throw new WrongKeyException("Wrong key!");
 		}
 		LOGGER.log(Level.WARNING, "-W- message failed decryption process");
 		return Base64.getEncoder().encodeToString(value); // TODO: HANDLE THIS

@@ -27,7 +27,7 @@ public interface ICryptoComponent {
 
 	byte[] RSAEncrypt(String value, String key);
 
-	String RSADecrypt(byte[] value, String key);
+	String RSADecrypt(byte[] value, String key) throws WrongKeyException;
 
 	EncryptionParameters getParameters();
 
