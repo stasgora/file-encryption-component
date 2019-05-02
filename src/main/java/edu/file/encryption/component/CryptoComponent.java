@@ -95,7 +95,7 @@ public class CryptoComponent implements ICryptoComponent {
 	public String getPublicRSAKey(String user) throws NoRSAKeyFoundException {
 		Boolean userExist = checkForUserKeys(user);
 		if(userExist == Boolean.FALSE){
-			throw new NoRSAKeyFoundException("Failed to get Public RSA key for user "+user);
+			return "";
 		}
 		String keyDirPath = String.join(File.separator,".", this.keyDir, user);
 
