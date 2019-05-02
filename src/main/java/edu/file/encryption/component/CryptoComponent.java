@@ -205,7 +205,11 @@ public class CryptoComponent implements ICryptoComponent {
 			byte[] byteKey = key.getBytes();
 
 			SecretKeySpec sKey = new SecretKeySpec(byteKey,0, 32, "AES");
-			cipher.init(Cipher.ENCRYPT_MODE, sKey, iv);
+			if(cipherMode != CipherAlgorithmMode.ECB){
+				cipher.init(Cipher.ENCRYPT_MODE, sKey, iv);
+			}else{
+				cipher.init(Cipher.ENCRYPT_MODE, sKey);
+			}
 			return cipher.doFinal(value);
 		} catch (NoSuchAlgorithmException e) {
 			LOGGER.log(Level.SEVERE, "-E- NoSuchAlgorithmException when working with Cipher!", e);
@@ -235,8 +239,11 @@ public class CryptoComponent implements ICryptoComponent {
 
 			byte[] byteKey = key.getBytes();
 			SecretKeySpec sKey = new SecretKeySpec(byteKey, 0, 32, "AES");
-			cipher.init(Cipher.DECRYPT_MODE, sKey, iv);
-
+			if(cipherMode != CipherAlgorithmMode.ECB){
+				cipher.init(Cipher.DECRYPT_MODE, sKey, iv);
+			}else{
+				cipher.init(Cipher.DECRYPT_MODE, sKey);
+			}
 			if(value.length % 16 != 0){
 				value = Base64.getDecoder().decode(value);
 			}
