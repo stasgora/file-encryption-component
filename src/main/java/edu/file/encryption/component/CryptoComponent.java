@@ -47,6 +47,7 @@ public class CryptoComponent implements ICryptoComponent {
 
 	public CryptoComponent() {
 		parameters = new EncryptionParameters();
+		this.generateSessionKey();
 	}
 
 	@Override
