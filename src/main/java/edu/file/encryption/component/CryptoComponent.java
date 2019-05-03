@@ -111,7 +111,7 @@ public class CryptoComponent implements ICryptoComponent {
 		String keyDirPath = String.join(File.separator,".", this.keyDir, user);
 
 		try {
-			String publicRSAKey = new String(Files.readAllBytes(Paths.get(keyDirPath+this.publicKeySuffix)));
+			String publicRSAKey = Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(keyDirPath+this.publicKeySuffix)));
 			return publicRSAKey;
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);
@@ -205,10 +205,11 @@ public class CryptoComponent implements ICryptoComponent {
 
 		try {
 			Cipher cipher = Cipher.getInstance(cipherInstance);
-			byte[] byteKey = key.getBytes();
+			byte[] byteKey = key.getBytes(StandardCharsets.UTF_8);
 
 			SecretKeySpec sKey = new SecretKeySpec(byteKey,0, 32, "AES");
 			if(cipherMode != CipherAlgorithmMode.ECB){
+				LOGGER.log(Level.INFO, "secret Key length: "+sKey.getEncoded().length);
 				cipher.init(Cipher.ENCRYPT_MODE, sKey, iv);
 			}else{
 				cipher.init(Cipher.ENCRYPT_MODE, sKey);
@@ -320,7 +321,7 @@ public class CryptoComponent implements ICryptoComponent {
 			byte[] result = cipher.doFinal(value);
 			long endTime = System.currentTimeMillis();
 			LOGGER.log(Level.INFO, "RSA decryption of " + value.length +" bytes in milliseconds: "+ (endTime - startTime));
-			return new String(result);
+			return Base64.getEncoder().encodeToString(result);
 
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
