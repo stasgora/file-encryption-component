@@ -205,8 +205,9 @@ public class CryptoComponent implements ICryptoComponent {
 
 		try {
 			Cipher cipher = Cipher.getInstance(cipherInstance);
-			byte[] byteKey = key.getBytes();
+			byte[] byteKey = key.getBytes(StandardCharsets.UTF_8);
 
+			LOGGER.log(Level.INFO, "byteKey length: "+byteKey.length);
 			SecretKeySpec sKey = new SecretKeySpec(byteKey,0, 32, "AES");
 			if(cipherMode != CipherAlgorithmMode.ECB){
 				cipher.init(Cipher.ENCRYPT_MODE, sKey, iv);
