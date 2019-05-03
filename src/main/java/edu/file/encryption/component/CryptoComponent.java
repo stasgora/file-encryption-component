@@ -182,9 +182,12 @@ public class CryptoComponent implements ICryptoComponent {
 			LOGGER.log(Level.WARNING, "-E- No instance named RSA", e);
 			return Boolean.FALSE;
 		}
+		long startTime = System.currentTimeMillis();
 		kpg.initialize(this.parameters.RSA_keySize);
 		KeyPair keyPair = kpg.generateKeyPair();
 
+		long endTime = System.currentTimeMillis();
+		LOGGER.log(Level.INFO, "RSA key pair generation in milliseconds: "+ (endTime - startTime));
 		Key publicKey = keyPair.getPublic();
 		Key privateKey = keyPair.getPrivate();
 
@@ -210,7 +213,11 @@ public class CryptoComponent implements ICryptoComponent {
 			}else{
 				cipher.init(Cipher.ENCRYPT_MODE, sKey);
 			}
-			return cipher.doFinal(value);
+			long startTime = System.currentTimeMillis();
+			byte[] result = cipher.doFinal(value);
+			long endTime = System.currentTimeMillis();
+			LOGGER.log(Level.INFO, "AES encryption of " + value.length +" bytes in milliseconds: "+ (endTime - startTime));
+			return result;
 		} catch (NoSuchAlgorithmException e) {
 			LOGGER.log(Level.SEVERE, "-E- NoSuchAlgorithmException when working with Cipher!", e);
 			return null;
@@ -247,7 +254,11 @@ public class CryptoComponent implements ICryptoComponent {
 			if(value.length % 16 != 0){
 				value = Base64.getDecoder().decode(value);
 			}
-			return cipher.doFinal(value);
+			long startTime = System.currentTimeMillis();
+			byte[] result = cipher.doFinal(value);
+			long endTime = System.currentTimeMillis();
+			LOGGER.log(Level.INFO, "AES decryption of " + value.length +" bytes in milliseconds: "+ (endTime - startTime));
+			return result;
 		} catch (NoSuchAlgorithmException e) {
 			LOGGER.log(Level.SEVERE, "-E- NoSuchAlgorithmException when working with Cipher!", e);
 			return null;
@@ -275,7 +286,12 @@ public class CryptoComponent implements ICryptoComponent {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			PublicKey pKey = keyFactory.generatePublic(keySpec);
 			cipher.init(Cipher.ENCRYPT_MODE, pKey);
-			return cipher.doFinal(value.getBytes());
+
+			long startTime = System.currentTimeMillis();
+			byte[] result = cipher.doFinal(value.getBytes());
+			long endTime = System.currentTimeMillis();
+			LOGGER.log(Level.INFO, "RSA encryption of " + value.getBytes().length +" bytes in milliseconds: "+ (endTime - startTime));
+			return result;
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
 		}catch(InvalidKeyException e){
@@ -299,7 +315,12 @@ public class CryptoComponent implements ICryptoComponent {
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			PrivateKey pKey = keyFactory.generatePrivate(keySpec);
 			cipher.init(Cipher.DECRYPT_MODE, pKey);
-			return new String(cipher.doFinal(value));
+
+			long startTime = System.currentTimeMillis();
+			byte[] result = cipher.doFinal(value);
+			long endTime = System.currentTimeMillis();
+			LOGGER.log(Level.INFO, "RSA decryption of " + value.length +" bytes in milliseconds: "+ (endTime - startTime));
+			return new String(result);
 
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
