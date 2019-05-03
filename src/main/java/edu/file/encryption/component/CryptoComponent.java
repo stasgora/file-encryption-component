@@ -111,7 +111,7 @@ public class CryptoComponent implements ICryptoComponent {
 		String keyDirPath = String.join(File.separator,".", this.keyDir, user);
 
 		try {
-			String publicRSAKey = new String(Files.readAllBytes(Paths.get(keyDirPath+this.publicKeySuffix)));
+			String publicRSAKey = Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(keyDirPath+this.publicKeySuffix)));
 			return publicRSAKey;
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "-E- FileWriter IOException", e);
@@ -320,7 +320,7 @@ public class CryptoComponent implements ICryptoComponent {
 			byte[] result = cipher.doFinal(value);
 			long endTime = System.currentTimeMillis();
 			LOGGER.log(Level.INFO, "RSA decryption of " + value.length +" bytes in milliseconds: "+ (endTime - startTime));
-			return new String(result);
+			return Base64.getEncoder().encodeToString(result);
 
 		}catch(NoSuchAlgorithmException | NoSuchPaddingException e){
 			LOGGER.log(Level.WARNING, "-E- Wrong algorithm or padding", e);
